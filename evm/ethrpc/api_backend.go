@@ -3,6 +3,7 @@ package ethrpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -37,10 +38,10 @@ func (e *EthAPIBackend) SyncProgress() ethereum.SyncProgress {
 	panic("implement me")
 }
 
-func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
-	//TODO implement me
-	panic("implement me")
-}
+//func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+//	//TODO implement me
+//	panic("implement me")
+//}
 
 func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, []*big.Int, []float64, error) {
 	//TODO implement me
@@ -90,25 +91,88 @@ func (e *EthAPIBackend) SetHead(number uint64) {
 }
 
 func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error) {
-	//TODO implement me
-	panic("implement me")
+	yuBlock, err := e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
+	if err != nil {
+		logrus.Error("ethrpc.api_backend.GetBlockByHeight() failed: ", err)
+		return new(types.Header), err
+	}
+
+	return &types.Header{
+		ParentHash:  common.Hash(yuBlock.PrevHash),
+		Coinbase:    common.Address{},
+		Root:        common.Hash(yuBlock.StateRoot),
+		TxHash:      common.Hash(yuBlock.TxnRoot),
+		ReceiptHash: common.Hash(yuBlock.ReceiptRoot),
+		Number:      new(big.Int).SetUint64(uint64(yuBlock.Height)),
+		GasLimit:    yuBlock.LeiLimit,
+		GasUsed:     yuBlock.LeiUsed,
+		Time:        yuBlock.Timestamp,
+		Extra:       yuBlock.Extra,
+		Nonce:       types.BlockNonce{},
+		BaseFee:     nil,
+	}, err
 }
 
 func (e *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
-	//TODO implement me
-	panic("implement me")
+	yuBlock, err := e.chain.Chain.GetBlock(yucommon.Hash(hash))
+	if err != nil {
+		logrus.Error("ethrpc.api_backend.HeaderByHash() failed: ", err)
+		return new(types.Header), err
+	}
+
+	return &types.Header{
+		ParentHash:  common.Hash(yuBlock.PrevHash),
+		Coinbase:    common.Address{},
+		Root:        common.Hash(yuBlock.StateRoot),
+		TxHash:      common.Hash(yuBlock.TxnRoot),
+		ReceiptHash: common.Hash(yuBlock.ReceiptRoot),
+		Number:      new(big.Int).SetUint64(uint64(yuBlock.Height)),
+		GasLimit:    yuBlock.LeiLimit,
+		GasUsed:     yuBlock.LeiUsed,
+		Time:        yuBlock.Timestamp,
+		Extra:       yuBlock.Extra,
+		Nonce:       types.BlockNonce{},
+		BaseFee:     nil,
+	}, err
 }
 
 func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
-	//TODO implement me
-	panic("implement me")
+	if blockNr, ok := blockNrOrHash.Number(); ok {
+		return e.HeaderByNumber(ctx, blockNr)
+	}
+
+	if blockHash, ok := blockNrOrHash.Hash(); ok {
+		return e.HeaderByHash(ctx, blockHash)
+	}
+
+	return nil, errors.New("invalid arguments; neither block nor hash specified")
 }
 
+// Same as CurrentBlock()
 func (e *EthAPIBackend) CurrentHeader() *types.Header {
 	//TODO implement me
-	panic("implement me")
+	yuBlock, err := e.chain.Chain.GetEndBlock()
+	if err != nil {
+		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
+		return new(types.Header)
+	}
+	return &types.Header{
+		ParentHash:  common.Hash(yuBlock.PrevHash),
+		Coinbase:    common.Address{},
+		Root:        common.Hash(yuBlock.StateRoot),
+		TxHash:      common.Hash(yuBlock.TxnRoot),
+		ReceiptHash: common.Hash(yuBlock.ReceiptRoot),
+		Number:      new(big.Int).SetUint64(uint64(yuBlock.Height)),
+		GasLimit:    yuBlock.LeiLimit,
+		GasUsed:     yuBlock.LeiUsed,
+		Time:        yuBlock.Timestamp,
+		Extra:       yuBlock.Extra,
+		Nonce:       types.BlockNonce{},
+		BaseFee:     nil,
+	}
 }
 
+// Question: this should return *types.Block
 func (e *EthAPIBackend) CurrentBlock() *types.Header {
 	yuBlock, err := e.chain.Chain.GetEndBlock()
 	if err != nil {
